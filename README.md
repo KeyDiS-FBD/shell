@@ -4,6 +4,15 @@
 Shell is a user interface for access to an operating system's services.
 It's my version of shell
 
+## To compile you need to run:
+make
+
+## Run shell:
+bin/main
+
+## Exit from shell:
+quit or exit
+
 ## Stages:
 1.  Take a lex
 2.  Standart running of the software
