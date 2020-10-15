@@ -53,7 +53,7 @@ char **getList(char *listEnd) {
     return list;
 }
 
-char ***getArrList(int *conv) {
+char ***getArrList(int *convFlag) {
     char ***list = NULL, listEnd = '\0';
     int i = 0;
     while (listEnd != '\n' && listEnd != 'c') {
@@ -62,11 +62,44 @@ char ***getArrList(int *conv) {
         i++;
     }
     if(listEnd == 'c') {
-        *conv = 1;
+        *convFlag = 1;
     } else {
-        *conv = 0;
+        *convFlag = 0;
     }
     list = realloc(list, (i + 1) * sizeof(char**));
     list[i] = NULL;
     return list;
+}
+
+//Functions for memory clean
+void freeList(char **list) {
+    for (int i = 0; list[i] != NULL; i++) {
+        free(list[i]);
+    }
+    free(list);
+}
+
+void freeArrList(char ***arrList) {
+    for (int i = 0; arrList[i] != NULL; i++) {
+        freeList(arrList[i]);
+    }
+    free(arrList);
+}
+
+//Functions for check correct input
+void printLine(char **list) {
+    int i = 0;
+    while (list[i] != NULL) {
+        printf("[%s] ", list[i]);
+        i++;
+    }
+}
+
+void printArrList(char ***list) {
+    int i = 0;
+    while (list[i] != NULL) {
+        printLine(list[i]);
+        puts("");
+        i++;
+    }
 }

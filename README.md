@@ -8,7 +8,7 @@ It's my version of shell
 make
 
 ## Run shell:
-bin/main
+bin/shell
 
 ## Exit from shell:
 quit or exit

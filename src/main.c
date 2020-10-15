@@ -7,69 +7,7 @@
 #include <fcntl.h>
 
 #include "../include/reading.h"
-
-struct fdArgList {
-    int fdOld[2];
-    int fdNew[2];
-    int inNum, outNum;
-    int lastListNum;
-    int fdIn, fdOut;
-    char *inVar, *outVar;
-};
-
-char *getCurrentDir(char *pwd) {
-    char *directory;
-    directory = malloc(256 * sizeof(char));
-    int i = 0, j = 0;
-    while (pwd[i] != '\0') {
-        if (pwd[i] == '/') {
-            j = 0;
-            i++;
-            continue;
-        }
-        directory[j] = pwd[i];
-        i++;
-        j++;
-    }
-    directory[j] = '\0';
-    free(pwd);
-    return directory;
-}
-
-void user() {
-    char *pwd = getcwd(NULL, 256);
-    char *userName = getenv("USER");
-    char host[256];
-    gethostname(host, _SC_HOST_NAME_MAX);
-    pwd = getCurrentDir(pwd);
-    printf("[%s@%s %s]$ ", userName, host, pwd);
-    fflush(stdout);
-    free(pwd);
-}
-
-void dupWithCheck(int fdOld, int fdNew) {
-    if (fdOld >= 0) {
-        dup2(fdOld, fdNew);
-    }
-}
-
-void nextPipe(int *fdOld, int *fdNew) {
-    fdOld[0] = fdNew[0];
-    fdOld[1] = fdNew[1];
-}
-
-void closeWithCheck(int *fd) {
-    if (fd != NULL) {
-        if (fd[0] >= 0) {
-            close(fd[0]);
-            fd[0] = -1;
-        }
-        if (fd[1] >= 0) {
-            close(fd[1]);
-            fd[1] = -1;
-        }
-    }
-}
+#include "../include/ui.h"
 
 int ioFind(char **list, int flag) {
     if (list[0][0] != '\0') {
@@ -85,37 +23,38 @@ int ioFind(char **list, int flag) {
     return 0;
 }
 
-struct fdArgList *ioFile(struct fdArgList *ArgList, char ***list) {
-    while (list[ArgList->lastListNum + 1] != NULL) {
-        ArgList->lastListNum++;
-    }
-    ArgList->inNum = ioFind(list[0], 0);
-    if (ArgList->inNum != 0) {
-        ArgList->fdIn = open(list[0][ArgList->inNum + 1], O_RDONLY);
-    }
-    ArgList->outNum = ioFind(list[ArgList->lastListNum], 1);
-    if (ArgList->outNum != 0) {
-        ArgList->fdOut = open(list[ArgList->lastListNum][ArgList->outNum + 1],
-            O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    }
-    if (ArgList->inNum != 0) {
-        ArgList->inVar = list[0][ArgList->inNum];
-        list[0][ArgList->inNum] = NULL;
-    }
-    if (ArgList->outNum != 0) {
-        ArgList->outVar = list[ArgList->lastListNum][ArgList->outNum];
-        list[ArgList->lastListNum][ArgList->outNum] = NULL;
-    }
-    ArgList->fdOld[0] = ArgList->fdIn;
-    return ArgList;
+void handler(int signo) {
+    putchar('\n');
+    user();
 }
 
+int checkBG(char ***list) {                //фоновый режим
+    int i, j, k;
+    char ch;
+    if (list[0] == NULL || list[0][0] == NULL || list[0][0][0] == '\0')
+            return -1;
+    for (i = 0; list[i] != NULL; i++) {
+        for (j = 0; list[i][j] != NULL; j++) {
+            for (k = 0; list[i][j][k] != '\0'; k++) {
+                ch = list[i][j][k];
+            }
+        }
+    }
+    if (ch == '&') {
+        if (k == 1) {
+            free(list[i - 1][j - 1]);
+            list[i - 1][j - 1] = NULL;
+        } else {
+            list[i - 1][j - 1][k - 1] = '\0';
+        }
+        if (list[0] == NULL || list[0][0] == NULL || list[0][0][0] == '\0') {
+            return -1;
+        }
+        return 1;
+    }
+    return 0;
+}
 
-// void handler(int signo) {
-//     putchar('\n');
-//     user();
-// }
-//
 int changeDir(char ***list) {
     if (strcmp(list[0][0], "cd") == 0) {
         char *home = getenv("HOME");
@@ -132,78 +71,93 @@ int changeDir(char ***list) {
 }
 
 void cmd(char ***list) {
+    int i = 0;
     if (changeDir(list) == 1) {
         return;
     }
     int pid;
-    struct fdArgList *ArgList = NULL;
-    ArgList = malloc(sizeof(struct fdArgList));
-    ArgList->lastListNum = 0;
-    ArgList->fdOld[0] = -1;
-    ArgList->fdOld[1] = -1;
-    ArgList->fdNew[0] = -1;
-    ArgList->fdNew[1] = -1;
-    ArgList = ioFile(ArgList, list);
-    for (int i = 0; list[i] != NULL; i++) {
+    for (i = 0; list[i] != NULL; i++) {
         pid = fork();
-        if (i != ArgList->lastListNum) {
-            pipe(ArgList->fdNew);
-        } else {
-            ArgList->fdNew[1] = ArgList->fdOut;
-        }
-        if (pid < 0) {
+        if (pid > 0) {
+            wait(NULL);
+        } else if (pid < 0) {
             perror("Error");
             exit(1);
-        } else if (pid == 0) {
-            dupWithCheck(ArgList->fdOld[0], 0);
-            dupWithCheck(ArgList->fdNew[1], 1);
-            closeWithCheck(ArgList->fdOld);
-            closeWithCheck(ArgList->fdNew);
+        } else {
             if (execvp(list[i][0], list[i]) < 0) {
-                perror("Error");
+                perror("Error, exec failed");
                 exit(1);
             }
         }
-        closeWithCheck(ArgList->fdOld);
-        nextPipe(ArgList->fdOld, ArgList->fdNew);
     }
 }
 
-
-
-void freeList(char **list) {
-    for (int i = 0; list[i] != NULL; i++) {
-        free(list[i]);
+// void cmdConvAndBG(char ***list, int *numCurBGP, int *convFlag) {
+//     int pid = fork();
+//     if (pid > 0) {
+//         wait(NULL);
+//     } else if (pid < 0) {
+//         perror("Error");
+//         exit(1);
+//     } else if (pid == 0) {
+//         cmd(list);
+//         freeArrList(list);
+//         exit(0);
+//     } else {
+//         if (*convFlag != 0) {          //&
+//             int wstatus;
+//             wait(&wstatus);
+//             printf("%d\n", WEXITSTATUS(wstatus));
+//         } else {
+//             *numCurBGP += 1;
+//             printf("[%d] %d\n", *numCurBGP, pid);
+//         }
+//     }
+// }
+//
+int cmdExit(char ***list) {
+    if (strcmp(list[0][0], "exit") != 0 && strcmp(list[0][0], "quit") != 0) {
+        return 1;
+    } else {
+        return 0;
     }
-    free(list);
-}
-
-void freeArrList(char ***arrList) {
-    for (int i = 0; arrList[i] != NULL; i++) {
-        freeList(arrList[i]);
-    }
-    free(arrList);
 }
 
 int main() {
-    // signal(SIGINT, handler);
+    signal(SIGINT, handler);
     char ***list;
+    int numCurBGP = 0;
+    int convFlag = 0, backgroudFlag = 0;
     user();
-    list = getArrList();
+    list = getArrList(&convFlag);
+    // printArrList(list);
     while (list[0][0] == NULL) {
         freeArrList(list);
         user();
-        list = getArrList();
+        list = getArrList(&convFlag);
+        // printArrList(list);
+
     }
-    while (strcmp(list[0][0], "exit") != 0 && strcmp(list[0][0], "quit") != 0) {
+    while (cmdExit(list)) {
+        // numCurBGP = 0;
+        // backgroudFlag = checkBG(list);
+        // if (convFlag == 0 && backgroudFlag == 0) {
+        //     cmd(list);
+        // } else if (backgroudFlag || (backgroudFlag >= 0 && convFlag)) {
+        //     cmdConvAndBG(list, &numCurBGP, &convFlag);
+        // }
         cmd(list);
         freeArrList(list);
-        user();
-        list = getArrList();
+        if (convFlag == 0) {
+            user();
+        }
+        list = getArrList(&convFlag);
+        // printArrList(list);
         while (list[0][0] == NULL) {
             freeArrList(list);
             user();
-            list = getArrList();
+            list = getArrList(&convFlag);
+            // printArrList(list);
         }
     }
     freeArrList(list);
