@@ -8,6 +8,22 @@
 
 #include "../include/reading.h"
 #include "../include/ui.h"
+#include "../include/execute.h"
+
+int *pidPhone = NULL;
+
+void printPidPhone(int numPidPhone) {
+    for (int i = 0; i < numPidPhone; i++) {
+        printf("[%d] %d", i, pidPhone[i]);
+    }
+}
+
+void pidPhoneAppend(int pid, int *ptrNumPidPhone) {
+    int bytes = (*ptrNumPidPhone + 1) * sizeof(int);
+    pidPhone = realloc(pidPhone, bytes);
+    pidPhone[*ptrNumPidPhone] = pid;
+    (*ptrNumPidPhone)++;
+}
 
 int ioFind(char **list, int flag) {
     if (list[0][0] != '\0') {
@@ -24,11 +40,11 @@ int ioFind(char **list, int flag) {
 }
 
 void handler(int signo) {
-    putchar('\n');
+    puts("SIGINT recieved\n");
     user();
 }
 
-int checkBG(char ***list) {                //фоновый режим
+int checkBackGround(char ***list) {                //фоновый режим
     int i, j, k;
     char ch;
     if (list[0] == NULL || list[0][0] == NULL || list[0][0][0] == '\0')
@@ -55,70 +71,41 @@ int checkBG(char ***list) {                //фоновый режим
     return 0;
 }
 
-int changeDir(char ***list) {
-    if (strcmp(list[0][0], "cd") == 0) {
-        char *home = getenv("HOME");
-        if (list[0][1] == NULL || strcmp(list[0][0], "~") == 0) {
-            chdir(home);
-        } else {
-            if(chdir(list[0][1]) != 0) {
-                perror("Error can't change directory");
-            }
-        }
-        return 1;
-    }
-    return 0;
-}
-
-void cmd(char ***list) {
-    int i = 0;
-    if (changeDir(list) == 1) {
-        return;
-    }
+void cmdBackGround(char ***list, int *numPidPhone) {
     int pid;
-    for (i = 0; list[i] != NULL; i++) {
+    int i;
+    if (list[0][0] == NULL) {
+        perror("Error");
+        exit(1);
+    }
+    for(i = 0; list[i] != NULL; i++) {
         pid = fork();
-        if (pid > 0) {
-            wait(NULL);
-        } else if (pid < 0) {
+        pidPhoneAppend(pid, numPidPhone);
+        if (pid < 0) {
             perror("Error");
             exit(1);
+        } else if (pid == 0) {
+            cmd(list, 1);
+            freeArrList(list);
+            exit(0);
         } else {
-            if (execvp(list[i][0], list[i]) < 0) {
-                perror("Error, exec failed");
-                exit(1);
-            }
+            printf("[%d] %d\n", *numPidPhone, pid);
         }
     }
 }
 
-// void cmdConvAndBG(char ***list, int *numCurBGP, int *convFlag) {
-//     int pid = fork();
-//     if (pid > 0) {
-//         wait(NULL);
-//     } else if (pid < 0) {
-//         perror("Error");
-//         exit(1);
-//     } else if (pid == 0) {
-//         cmd(list);
-//         freeArrList(list);
-//         exit(0);
-//     } else {
-//         if (*convFlag != 0) {          //&
-//             int wstatus;
-//             wait(&wstatus);
-//             printf("%d\n", WEXITSTATUS(wstatus));
-//         } else {
-//             *numCurBGP += 1;
-//             printf("[%d] %d\n", *numCurBGP, pid);
-//         }
-//     }
-// }
-//
-int cmdExit(char ***list) {
+void killPidPhone(int numPidPhone) {
+    for (int i = 0; i <= numPidPhone; i++) {
+        kill(pidPhone[i], SIGKILL);
+    }
+    free(pidPhone);
+}
+
+int cmdExit(char ***list, int numPidPhone) {
     if (strcmp(list[0][0], "exit") != 0 && strcmp(list[0][0], "quit") != 0) {
         return 1;
     } else {
+        killPidPhone(numPidPhone);
         return 0;
     }
 }
@@ -126,8 +113,8 @@ int cmdExit(char ***list) {
 int main() {
     signal(SIGINT, handler);
     char ***list;
-    int numCurBGP = 0;
-    int convFlag = 0, backgroudFlag = 0;
+    int numPidPhone = 0;
+    int convFlag = 0, backgroundFlag = 0;
     user();
     list = getArrList(&convFlag);
     // printArrList(list);
@@ -138,21 +125,19 @@ int main() {
         // printArrList(list);
 
     }
-    while (cmdExit(list)) {
-        // numCurBGP = 0;
-        // backgroudFlag = checkBG(list);
-        // if (convFlag == 0 && backgroudFlag == 0) {
-        //     cmd(list);
-        // } else if (backgroudFlag || (backgroudFlag >= 0 && convFlag)) {
-        //     cmdConvAndBG(list, &numCurBGP, &convFlag);
-        // }
-        cmd(list);
-        freeArrList(list);
-        if (convFlag == 0) {
-            user();
+    while (cmdExit(list, numPidPhone)) {
+        backgroundFlag = checkBackGround(list);
+        if (backgroundFlag == 0) {
+            cmd(list, 0);
+        } else if (backgroundFlag) {
+            cmdBackGround(list, &numPidPhone);
         }
+        freeArrList(list);
+        // if (backgroundFlag == 0) {
+            // user();
+        // }
+        user();
         list = getArrList(&convFlag);
-        // printArrList(list);
         while (list[0][0] == NULL) {
             freeArrList(list);
             user();
