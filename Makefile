@@ -1,7 +1,7 @@
 #переменная CC указывает на компилятор
 CC=gcc
 #переменная CFLAGS хранит необходимые для компиляции флаги
-CFLAGS=-Wall -Werror -lm
+CFLAGS=-Wall -Werror -lm -Iinclude
 
 .PHONY: clean, all
 
@@ -31,8 +31,7 @@ link: main.o reading.o ui.o execute.o pidList.o
 
 OBJ_RM: main.o reading.o ui.o execute.o pidList.o
 	rm main.o pidList.o
-	rm reading.o
-	rm ui.o
+	rm reading.o ui.o
 	rm execute.o
 
 clean:

@@ -6,10 +6,15 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include "../include/reading.h"
-#include "../include/ui.h"
-#include "../include/execute.h"
-#include "../include/pidList.h"
+// #include "reading.h"
+// #include "ui.h"
+// #include "execute.h"
+// #include "pidList.h"
+
+#include <reading.h>
+#include <ui.h>
+#include <execute.h>
+#include <pidList.h>
 
 int ioFind(char **list, int flag) {
     if (list[0][0] != '\0') {
@@ -86,6 +91,9 @@ void cmd(char ***list, ptrList headPidCurrList) {
     if (changeDir(list) == 1) {
         return;
     }
+    // int inputPosition, outputPosition;
+    // inputPosition = ioFind(list, 0);
+    // outputPosition = ioFind(list, 1);
     for (int i = 0; list[i] != NULL; i++) {
         pid = fork();
         headPidCurrList = pidListAppend(pid, headPidCurrList);

@@ -4,6 +4,9 @@
 Shell is a user interface for access to an operating system's services.
 It's my version of shell
 
+## Download by command:
+git clone https://github.com/KeyDiS-FBD/shell
+
 ## To compile you need to run:
 make
 

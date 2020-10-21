@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../include/pidList.h"
+// #include "pidList.h"
 
 int changeDir(char ***list) {
     if (strcmp(list[0][0], "cd") == 0) {
