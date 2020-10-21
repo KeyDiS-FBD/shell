@@ -9,21 +9,7 @@
 #include "../include/reading.h"
 #include "../include/ui.h"
 #include "../include/execute.h"
-
-int *pidPhone = NULL;
-
-void printPidPhone(int numPidPhone) {
-    for (int i = 0; i < numPidPhone; i++) {
-        printf("[%d] %d", i, pidPhone[i]);
-    }
-}
-
-void pidPhoneAppend(int pid, int *ptrNumPidPhone) {
-    int bytes = (*ptrNumPidPhone + 1) * sizeof(int);
-    pidPhone = realloc(pidPhone, bytes);
-    pidPhone[*ptrNumPidPhone] = pid;
-    (*ptrNumPidPhone)++;
-}
+#include "../include/pidList.h"
 
 int ioFind(char **list, int flag) {
     if (list[0][0] != '\0') {
@@ -39,8 +25,12 @@ int ioFind(char **list, int flag) {
     return 0;
 }
 
+void customKill(int pid) {
+    kill(pid, 2);
+}
+
 void handler(int signo) {
-    puts("SIGINT recieved\n");
+    puts("\nSIGINT recieved");
     user();
 }
 
@@ -71,80 +61,106 @@ int checkBackGround(char ***list) {                //фоновый режим
     return 0;
 }
 
-void cmdBackGround(char ***list, int *numPidPhone) {
-    int pid;
-    int i;
-    if (list[0][0] == NULL) {
-        perror("Error");
-        exit(1);
+
+
+void killPidList(ptrList headPidList) {
+    ptrList tmpPidNode = headPidList;
+    while (tmpPidNode != NULL) {
+        int pid = tmpPidNode->pid;
+        kill(pid, 2);
+
+        tmpPidNode = tmpPidNode->next;
     }
-    for(i = 0; list[i] != NULL; i++) {
+    freePidList(&headPidList);
+}
+
+int cmdExit(char ***list) {
+    if (strcmp(list[0][0], "exit") != 0 && strcmp(list[0][0], "quit") != 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+void cmd(char ***list, ptrList headPidCurrList) {
+    int pid;
+    if (changeDir(list) == 1) {
+        return;
+    }
+    for (int i = 0; list[i] != NULL; i++) {
         pid = fork();
-        pidPhoneAppend(pid, numPidPhone);
-        if (pid < 0) {
+        headPidCurrList = pidListAppend(pid, headPidCurrList);
+        if (pid > 0) {
+            wait(NULL);
+        } else if (pid < 0) {
             perror("Error");
             exit(1);
         } else if (pid == 0) {
-            cmd(list, 1);
-            freeArrList(list);
-            exit(0);
-        } else {
-            printf("[%d] %d\n", *numPidPhone, pid);
+            if (execvp(list[i][0], list[i]) < 0) {
+                perror("Error, exec failed");
+                exit(1);
+            }
         }
     }
 }
 
-void killPidPhone(int numPidPhone) {
-    for (int i = 0; i <= numPidPhone; i++) {
-        kill(pidPhone[i], SIGKILL);
+void cmdBackGround(char ***list, int *numPidPhone, ptrList *headPidPhoneList) {
+    int pid;
+    if (list[0][0] == NULL) {
+        perror("Error");
+        exit(1);
     }
-    free(pidPhone);
+    for(int i = 0; list[i] != NULL; i++) {
+        pid = fork();
+        (*numPidPhone)++;
+        if (pid < 0) {
+            perror("Error");
+            exit(1);
+        } else if (pid == 0) {
+            if (execvp(list[i][0], list[i]) < 0) {
+                perror("Error, exec failed");
+                exit(1);
+            }
+            freeArrList(list);
+            // exit(0);
+        } else {
+            printf("[%d] %d\n", *numPidPhone, pid);
+            *headPidPhoneList = pidListAppend(pid, *headPidPhoneList);
+        }
+    }
 }
 
-int cmdExit(char ***list, int numPidPhone) {
-    if (strcmp(list[0][0], "exit") != 0 && strcmp(list[0][0], "quit") != 0) {
-        return 1;
-    } else {
-        killPidPhone(numPidPhone);
-        return 0;
-    }
-}
 
 int main() {
     signal(SIGINT, handler);
     char ***list;
     int numPidPhone = 0;
+    ptrList headPidPhoneList = NULL;
+    ptrList headPidCurrList = NULL;
     int convFlag = 0, backgroundFlag = 0;
     user();
     list = getArrList(&convFlag);
-    // printArrList(list);
     while (list[0][0] == NULL) {
         freeArrList(list);
         user();
         list = getArrList(&convFlag);
-        // printArrList(list);
-
     }
-    while (cmdExit(list, numPidPhone)) {
+    while (cmdExit(list)) {
         backgroundFlag = checkBackGround(list);
         if (backgroundFlag == 0) {
-            cmd(list, 0);
-        } else if (backgroundFlag) {
-            cmdBackGround(list, &numPidPhone);
+            cmd(list, headPidCurrList);
+        } else if (backgroundFlag == 1) {
+            cmdBackGround(list, &numPidPhone, &headPidPhoneList);
         }
         freeArrList(list);
-        // if (backgroundFlag == 0) {
-            // user();
-        // }
         user();
         list = getArrList(&convFlag);
         while (list[0][0] == NULL) {
             freeArrList(list);
             user();
             list = getArrList(&convFlag);
-            // printArrList(list);
         }
     }
+    killPidList(headPidPhoneList);
     freeArrList(list);
     return 0;
 }

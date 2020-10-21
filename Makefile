@@ -5,7 +5,7 @@ CFLAGS=-Wall -Werror -lm
 
 .PHONY: clean, all
 
-all: bin main reading ui execute link OBJ_RM
+all: bin main reading ui execute pidList link OBJ_RM
 	echo Success compile
 
 bin:
@@ -23,11 +23,14 @@ reading: src/reading.c
 execute: src/execute.c
 	$(CC) $(CFLAGS) src/execute.c -c
 
-link: main.o reading.o ui.o execute.o
-	$(CC) $(CFLAGS) main.o reading.o ui.o execute.o -o bin/shell
+pidList: src/pidList.c
+	$(CC) $(CFLAGS) src/pidList.c -c
 
-OBJ_RM: main.o reading.o ui.o execute.o
-	rm main.o
+link: main.o reading.o ui.o execute.o pidList.o
+	$(CC) $(CFLAGS) main.o reading.o ui.o execute.o pidList.o -o bin/shell
+
+OBJ_RM: main.o reading.o ui.o execute.o pidList.o
+	rm main.o pidList.o
 	rm reading.o
 	rm ui.o
 	rm execute.o
