@@ -22,7 +22,7 @@ char *getCurrentDir(char *pwd) {
 }
 
 void user() {
-    char *pwd = getcwd(NULL, 256);
+    char *pwd = getcwd(NULL, 0);
     char *userName = getenv("USER");
     char host[256];
     gethostname(host, _SC_HOST_NAME_MAX);
