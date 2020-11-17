@@ -1,7 +1,7 @@
 #переменная CC указывает на компилятор
 CC=gcc
 #переменная CFLAGS хранит необходимые для компиляции флаги
-CFLAGS=-Wall -Werror -lm -Iinclude
+CFLAGS=-Wall -lm -Iinclude
 
 .PHONY: clean, all
 
@@ -37,5 +37,5 @@ OBJ_RM: main.o reading.o ui.o execute.o pidList.o
 clean:
 	rm bin/shell
 	#rm bin/reading
-	rmdir /bin
+	rmdir bin
 	#ls | grep -v "\." | grep -v Makefile | xargs rm
